@@ -28,34 +28,48 @@ Ensure you have **Python 3.10+** installed. You will need the following dependen
     cd sk-player-launcher
     ```
 
-2.  **Install dependencies:**
+2.  **Set executable permissions:**
     ```bash
-    pip install PySide6 requests
+    chmod +x scripts/install-sk.sh
     ```
 
-3.  **Run the application:**
+3.  **Run the Installation:**
     ```bash
-    python main.py
+    ./scripts/install-sk.sh
     ```
 
 ## 📂 Project Structure
 
 ```text
-SK-Player/
-├── data/                  # Auto-generated (Stores banners, runners, configs)
-├── theme/                 # External QSS files (optional)
-├── skcore/                # Backend Logic
-│   ├── database.py        # JSON handling for game data
-│   ├── launcher.py        # Process execution logic
-│   └── runners.py         # GitHub API & Wine management logic
-├── skui/                  # Frontend UI
-│   ├── main_window.py     # Main application window
-│   ├── title_bar.py       # Custom draggable title bar
-│   ├── game_card.py       # Game grid items
-│   ├── edit_dialog.py     # Game editing interface
-│   ├── theme_dialog.py    # Color picker interface
-│   └── runner_dialog.py   # Downloader interface
-└── main.py                # Application entry point
+sk-player/
+├── assets/                # Static Resources (Images, icons, and branding)
+│   ├── SKBanner1.png      # Default app banner
+│   └── SKPFP*.png         # User profile picture placeholders
+├── data/                  # Persistent Storage (User data & binaries)
+│   ├── banners/           # Downloaded game artwork
+│   ├── prefixes/          # Wine environment configurations
+│   ├── runners/           # Compatibility layers (Proton/Wine builds)
+│   ├── games.json         # Local database for indexed games
+│   └── settings.json      # Global application configuration
+├── scripts/               # Automation & Tooling
+│   ├── install-sk.sh      # Automated setup & dependency installer
+│   └── requirements.txt   # Python dependency list
+├── setting/               # Maintenance Module
+│   └── updater.py         # Version checking and update logic
+├── skcore/                # Backend Engine (Core Logic)
+│   ├── config.py          # Internal constants & paths management
+│   ├── database.py        # CRUD operations for JSON data
+│   ├── launcher.py        # Subprocess management for launching games
+│   └── runners.py         # API integration for fetching runners
+├── skui/                  # UI Framework (Frontend components)
+│   ├── base_dialog.py     # Reusable UI templates
+│   ├── game_card.py       # Custom QWidget for game entries
+│   ├── main_window.py     # Primary GUI layout and orchestration
+│   ├── theme_dialog.py    # Interface for QSS/Theme switching
+│   └── title_bar.py       # Custom window decorations (Close/Min/Max)
+├── theme/                 # Styling (External QSS/CSS files)
+├── main.py                # App Entry Point (Bootstrap script)
+└── README.md              # Project Overview & Documentation
 ```
 
 ## 🚀 How to Use
@@ -80,14 +94,6 @@ SK-Player/
 *   Select a game.
 *   Click **"🖼️ Set Banner"** and choose an image.
 *   *Tip:* You can toggle between "Long" (Vertical) or "Wide" aspect ratios in the **Edit Details** menu.
-
-## 🔧 Troubleshooting
-
-**Can't drag the window on Linux (KDE/Wayland)?**
-The launcher uses `startSystemMove()` which is native to Wayland. Ensure you are clicking and holding the Title Bar area.
-
-**Purple lines around text/images?**
-This is a common QT issue on some Linux themes. The code includes a fix (`QPalette.Highlight` set to transparent) in `main_window.py`.
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
