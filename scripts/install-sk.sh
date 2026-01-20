@@ -1,47 +1,58 @@
 #!/bin/bash
 
+# تحديد المسارات الأساسية
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 REQ_FILE="$SCRIPT_DIR/requirements.txt"
+ICON_PATH="$PROJECT_ROOT/assets/SKPFP2.png" # تأكد من اسم ملف الصورة هنا
+APP_NAME="SK-Player"
 
-echo "--- Starting SK-Player Installation ---"
+echo "--- Installing $APP_NAME as a Desktop App ---"
 
+# 1. إنشاء البيئة الوهمية وتثبيت المكتبات
 cd "$PROJECT_ROOT" || exit
-
-echo "Checking for system dependencies..."
-sudo apt update && sudo apt install -y python3-pip python3-venv
-
 if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
     python3 -m venv venv
 fi
 
-echo "Installing Python dependencies from scripts/requirements.txt..."
 source venv/bin/activate
 pip install --upgrade pip
-
 if [ -f "$REQ_FILE" ]; then
     pip install -r "$REQ_FILE"
-else
-    echo "Error: $REQ_FILE not found!"
-    exit 1
 fi
 
+# 2. جعل الملفات قابلة للتنفيذ
 chmod +x main.py
 
-echo "Creating a system shortcut (sk-player)..."
-BIN_PATH="/usr/local/bin/sk-player"
-VENV_PYTHON="$PROJECT_ROOT/venv/bin/python3"
-MAIN_PY="$PROJECT_ROOT/main.py"
-
-sudo bash -c "cat > $BIN_PATH <<EOF
+# 3. إنشاء ملف التشغيل (Wrapper Script)
+# هذا الملف يضمن تشغيل البرنامج بالبيئة الوهمية الصحيحة
+LAUNCHER_PATH="$PROJECT_ROOT/sk-launcher.sh"
+cat > "$LAUNCHER_PATH" <<EOF
 #!/bin/bash
-$VENV_PYTHON $MAIN_PY \"\$@\"
-EOF"
+cd "$PROJECT_ROOT"
+"$PROJECT_ROOT/venv/bin/python3" "$PROJECT_ROOT/main.py"
+EOF
+chmod +x "$LAUNCHER_PATH"
 
-sudo chmod +x $BIN_PATH
+# 4. إنشاء ملف الـ .desktop (ليظهر في قائمة التطبيقات)
+DESKTOP_FILE="$HOME/.local/share/applications/sk-player.desktop"
 
-echo "----------------------------------------"
-echo "Installation Success!"
-echo "Now you can run the app from anywhere by typing: sk-player"
-echo "----------------------------------------"
+cat > "$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=$APP_NAME
+Comment=Manage and Launch Games
+Exec=$LAUNCHER_PATH
+Icon=$ICON_PATH
+Terminal=false
+Categories=Game;Utility;
+StartupNotify=true
+EOF
+
+# تحديث قاعدة بيانات التطبيقات
+update-desktop-database ~/.local/share/applications/ 2>/dev/null
+
+echo "--------------------------------------------------"
+echo "Done! You can now find '$APP_NAME' in your App Menu."
+echo "--------------------------------------------------"
