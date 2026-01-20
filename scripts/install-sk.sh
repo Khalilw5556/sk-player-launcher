@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# تحديد المسارات الأساسية
+# Define base paths
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 REQ_FILE="$SCRIPT_DIR/requirements.txt"
-ICON_PATH="$PROJECT_ROOT/assets/SKPFP2.png" # تأكد من اسم ملف الصورة هنا
+ICON_PATH="$PROJECT_ROOT/assets/SKPFP2.png" # Verify the icon filename here
 APP_NAME="SK-Player"
 
 echo "--- Installing $APP_NAME as a Desktop App ---"
 
-# 1. إنشاء البيئة الوهمية وتثبيت المكتبات
+# 1. Setup virtual environment and install dependencies
 cd "$PROJECT_ROOT" || exit
 if [ ! -d "venv" ]; then
     python3 -m venv venv
@@ -21,11 +21,11 @@ if [ -f "$REQ_FILE" ]; then
     pip install -r "$REQ_FILE"
 fi
 
-# 2. جعل الملفات قابلة للتنفيذ
+# 2. Make files executable
 chmod +x main.py
 
-# 3. إنشاء ملف التشغيل (Wrapper Script)
-# هذا الملف يضمن تشغيل البرنامج بالبيئة الوهمية الصحيحة
+# 3. Create a wrapper script for execution
+# Ensures the app runs using the correct virtual environment
 LAUNCHER_PATH="$PROJECT_ROOT/sk-launcher.sh"
 cat > "$LAUNCHER_PATH" <<EOF
 #!/bin/bash
@@ -34,7 +34,7 @@ cd "$PROJECT_ROOT"
 EOF
 chmod +x "$LAUNCHER_PATH"
 
-# 4. إنشاء ملف الـ .desktop (ليظهر في قائمة التطبيقات)
+# 4. Create .desktop file (System Menu Integration)
 DESKTOP_FILE="$HOME/.local/share/applications/sk-player.desktop"
 
 cat > "$DESKTOP_FILE" <<EOF
@@ -50,7 +50,7 @@ Categories=Game;Utility;
 StartupNotify=true
 EOF
 
-# تحديث قاعدة بيانات التطبيقات
+# Update desktop database
 update-desktop-database ~/.local/share/applications/ 2>/dev/null
 
 echo "--------------------------------------------------"
