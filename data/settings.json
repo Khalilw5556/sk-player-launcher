@@ -1,0 +1,6 @@
+{
+    "minimize_on_launch": false,
+    "minimize_to_tray_on_close": false,
+    "check_updates": true,
+    "developer_mode": false
+}
