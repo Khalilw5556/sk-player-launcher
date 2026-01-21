@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
-from PySide6.QtGui import QPixmap, QPainter, QPainterPath, QBrush
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtGui import QPixmap, QPainter, QPainterPath
+from PySide6.QtCore import Qt
 
 class GameCard(QFrame):
     def __init__(self, game, callback):
@@ -9,7 +9,6 @@ class GameCard(QFrame):
         self.is_selected = False
         self.selection_color = "#27ae60"
         self.setObjectName("GameCard")
-
         self.banner_type = self.game.get("banner_type", "long")
         if self.banner_type == "wide":
             self.H = 160
@@ -24,7 +23,6 @@ class GameCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setFixedSize(self.W, self.H)
-
         self.img_lbl = QLabel()
         self.img_lbl.setScaledContents(False)
         self.img_lbl.setStyleSheet("background: transparent;")
@@ -43,24 +41,18 @@ class GameCard(QFrame):
         self.update_style()
 
     def get_rounded_pixmap(self, pixmap, w, h, radius):
-        target = QPixmap(w, h)
-        target.fill(Qt.transparent)
-
+        
         scaled_pix = pixmap.scaled(w, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
+        target = QPixmap(w, h)
+        target.fill(Qt.transparent)
         painter = QPainter(target)
-        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.Antialiasing, True) 
         painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
-
         path = QPainterPath()
-        path.addRoundedRect(QRectF(0, 0, w, h), radius, radius)
-
-        painter.fillPath(path, QBrush(Qt.white))
-
-        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-
+        path.addRoundedRect(0, 0, w, h, radius, radius)
+        painter.setClipPath(path)
         painter.drawPixmap(0, 0, scaled_pix)
-
         painter.end()
         return target
 
@@ -70,7 +62,6 @@ class GameCard(QFrame):
 
     def update_style(self):
         border_color = self.selection_color if self.is_selected else "transparent"
-        
         self.setStyleSheet(f"""
             #GameCard {{ 
                 border: 4px solid {border_color}; 
