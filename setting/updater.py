@@ -14,7 +14,7 @@ BRANCH = "main"
 VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/version.txt"
 ZIP_URL = f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/archive/refs/heads/{BRANCH}.zip"
 IGNORED_DIRS = ["data", ".git", "__pycache__", "venv", ".idea"]
-CURRENT_VERSION = "0.1"
+CURRENT_VERSION = "1.3"
 
 
 def get_project_root():
