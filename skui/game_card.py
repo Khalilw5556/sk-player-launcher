@@ -1,7 +1,42 @@
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
 from PySide6.QtGui import QPixmap, QPainter, QPainterPath
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRect
 
+# --- 1. كلاس جديد مخصص لرسم الصورة بحواف ناعمة جداً ---
+class RoundedLabel(QLabel):
+    def __init__(self, pixmap, radius=15):
+        super().__init__()
+        self.pixmap = pixmap
+        self.radius = radius
+        # جعل الخلفية شفافة
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+    def paintEvent(self, event):
+        if self.pixmap.isNull():
+            super().paintEvent(event)
+            return
+
+        painter = QPainter(self)
+        # تفعيل التنعيم (Antialiasing) للحواف والصورة
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+        # تحديد مساحة الرسم الدقيقة للـ Label
+        rect = self.rect()
+
+        # إنشاء مسار مقصوص بـ 4 زوايا
+        path = QPainterPath()
+        path.addRoundedRect(rect, self.radius, self.radius)
+
+        # تطبيق القص
+        painter.setClipPath(path)
+
+        # تحجيم الصورة لتناسب المساحة تماماً ورسمها
+        scaled_pix = self.pixmap.scaled(rect.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+        painter.drawPixmap(rect, scaled_pix)
+
+
+# --- 2. كارد اللعبة ---
 class GameCard(QFrame):
     def __init__(self, game, callback):
         super().__init__()
@@ -10,7 +45,6 @@ class GameCard(QFrame):
         self.selection_color = "#27ae60"
         self.setObjectName("GameCard")
 
-        # إعداد الأبعاد
         self.banner_type = self.game.get("banner_type", "long")
         if self.banner_type == "wide":
             self.H = 160
@@ -23,56 +57,22 @@ class GameCard(QFrame):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        # أضفت هامش بسيط (4 بكسل) ليترك مساحة للإطار الخارجي عند التحديد
+        layout.setContentsMargins(4, 4, 4, 4) 
         self.setFixedSize(self.W, self.H)
-
-        self.img_lbl = QLabel()
-        self.img_lbl.setScaledContents(False) # مهم جداً إلغاء هذا الخيار
-        # نزيل الخلفية من الستايل حتى لا تظهر خلف الزوايا المقصوصة
-        self.img_lbl.setStyleSheet("background: transparent;")
 
         pix = QPixmap(self.game.get("banner", ""))
         
+        # استخدام الكلاس المخصص بدلاً من QLabel العادي
         if not pix.isNull():
-            # دالة لتدوير حواف الصورة برمجياً
-            rounded_pix = self.get_rounded_pixmap(pix, self.W, self.H, radius=15)
-            self.img_lbl.setPixmap(rounded_pix)
+            self.img_lbl = RoundedLabel(pix, radius=15)
         else:
-            self.img_lbl.setText("NO IMAGE")
+            self.img_lbl = QLabel("NO IMAGE")
             self.img_lbl.setAlignment(Qt.AlignCenter)
             self.img_lbl.setStyleSheet("background-color: #151515; border-radius: 15px; color: #333;")
 
         layout.addWidget(self.img_lbl)
         self.update_style()
-
-    def get_rounded_pixmap(self, pixmap, w, h, radius):
-        """
-        تقوم هذه الدالة بإنشاء صورة جديدة شفافة، وتقوم برسم الصورة الأصلية بداخلها
-        مع تطبيق قص (Clip) دائري للحواف.
-        """
-        # 1. تحجيم الصورة لتناسب الأبعاد المطلوبة بجودة عالية
-        scaled_pix = pixmap.scaled(w, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-
-        # 2. إنشاء صورة فارغة (الهدف) بنفس الحجم مع خلفية شفافة
-        target = QPixmap(w, h)
-        target.fill(Qt.transparent)
-
-        # 3. إعداد الرسام (Painter)
-        painter = QPainter(target)
-        painter.setRenderHint(QPainter.Antialiasing, True)       # لتنعيم الحواف
-        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
-
-        # 4. إنشاء مسار القص (شكل المستطيل ذو الزوايا الدائرية)
-        path = QPainterPath()
-        path.addRoundedRect(0, 0, w, h, radius, radius)
-
-        # 5. تطبيق القص والرسم
-        painter.setClipPath(path)
-        painter.drawPixmap(0, 0, scaled_pix)
-        
-        # إنهاء الرسم
-        painter.end()
-        return target
 
     def update_selection_color(self, color):
         self.selection_color = color
@@ -81,7 +81,7 @@ class GameCard(QFrame):
     def update_style(self):
         border_color = self.selection_color if self.is_selected else "transparent"
         
-        # الإطار الخارجي يظل كما هو ليتناسب مع الصورة
+        # تم تعديل radius ليكون متناسقاً مع الهوامش
         self.setStyleSheet(f"""
             #GameCard {{ 
                 border: 4px solid {border_color}; 
