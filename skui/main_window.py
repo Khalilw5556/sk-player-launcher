@@ -564,15 +564,31 @@ class MainWindow(QWidget):
         src, _ = QFileDialog.getOpenFileName(self, "Select Banner Image", home_dir,
                                              "Images (*.png *.jpg *.jpeg *.webp)")
         if not src: return
+
         os.makedirs("data/banners", exist_ok=True)
-        dest = os.path.join("data/banners", os.path.basename(src))
+
+        _, ext = os.path.splitext(src)
+
+        game_name = self.selected_game["name"]
+        new_filename = f"{game_name}{ext}"
+        dest = os.path.join("data/banners", new_filename)
+
         try:
             shutil.copy2(src, dest)
+
             self.selected_game["banner"] = dest
             save_games(self.games)
+
             self.refresh_grid()
-            idx = self.games.index(self.selected_game)
-            if idx < len(self.cards): self.on_select(self.cards[idx])
+
+            try:
+                for i, g in enumerate(self.games):
+                    if g.get('path') == self.selected_game.get('path'):
+                        self.on_select(self.cards[i])
+                        break
+            except:
+                pass
+
         except Exception as e:
             self.log(f"Error setting banner: {e}")
 
