@@ -1,109 +1,76 @@
-import requests
-import os
-import sys
-import shutil
-import zipfile
-import io
-from PySide6.QtWidgets import QMessageBox
-from skcore.config import load_settings
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt
 
-GITHUB_USER = "Khalilw5556"
-GITHUB_REPO = "sk-player-launcher"
-BRANCH = "main"
+class GameCard(QFrame):
+    def __init__(self, game, callback):
+        super().__init__()
+        self.game, self.callback = game, callback
+        self.is_selected = False
+        self.selection_color = "#27ae60"
+        self.setObjectName("GameCard")
 
-VERSION_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/version.txt"
-ZIP_URL = f"https://github.com/{GITHUB_USER}/{GITHUB_REPO}/archive/refs/heads/{BRANCH}.zip"
-IGNORED_DIRS = ["data", ".git", "__pycache__", "venv", ".idea"]
-CURRENT_VERSION = "1.0"
-
-
-def get_project_root():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.dirname(current_dir)
-
-
-def manual_check(parent_widget=None):
-    settings = load_settings()
-    if settings.get("developer_mode", False):
-        QMessageBox.information(
-            parent_widget,
-            "Developer Mode",
-            "Developer Mode is ACTIVE.\n\nUpdates are disabled to protect your local changes."
-        )
-        return
-
-    try:
-        response = requests.get(VERSION_URL, timeout=5)
-        if response.status_code == 200:
-            latest_version = response.text.strip()
-
-            if latest_version != CURRENT_VERSION:
-                reply = QMessageBox.question(
-                    parent_widget,
-                    "Update Available",
-                    f"A new version ({latest_version}) is available.\nDo you want to update now?",
-                    QMessageBox.Yes | QMessageBox.No
-                )
-
-                if reply == QMessageBox.Yes:
-                    download_and_install(parent_widget)
-            else:
-                QMessageBox.information(parent_widget, "Up to Date",
-                                        f"You are using the latest version ({CURRENT_VERSION}).")
+        # تحديد الأبعاد
+        self.banner_type = self.game.get("banner_type", "long")
+        if self.banner_type == "wide":
+            self.H = 160
+            self.W = int(self.H * (1920 / 620))
         else:
-            QMessageBox.warning(parent_widget, "Error", "Could not fetch version info from GitHub.")
+            self.H = 260
+            self.W = int(self.H * (600 / 900))
 
-    except Exception as e:
-        QMessageBox.critical(parent_widget, "Error", f"Failed to check for updates:\n{str(e)}")
+        self.setup_ui()
 
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setFixedSize(self.W, self.H)
 
-def download_and_install(parent_widget=None):
-    if parent_widget:
-        parent_widget.setDisabled(True)
+        self.img_lbl = QLabel()
+        # نلغي setScaledContents لأننا سنقوم بالتحجيم يدوياً بجودة عالية
+        self.img_lbl.setScaledContents(False)
+        
+        # إضافة حواف دائرية للصورة (Radius)
+        self.img_lbl.setStyleSheet("border-radius: 15px; background-color: #111;")
 
-    try:
-        r = requests.get(ZIP_URL)
-        if r.status_code == 200:
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            root_dir = get_project_root()
-            extract_path = os.path.join(root_dir, "temp_update")
-
-            z.extractall(extract_path)
-
-            extracted_folder_name = f"{GITHUB_REPO}-{BRANCH}"
-            source_dir = os.path.join(extract_path, extracted_folder_name)
-
-            apply_update(source_dir, root_dir)
-
-            shutil.rmtree(extract_path)
-
-            QMessageBox.information(parent_widget, "Success", "Update completed! The app will restart.")
-            restart_app()
+        pix = QPixmap(self.game.get("banner", ""))
+        if not pix.isNull():
+            # أهم خطوة: تحجيم الصورة بجودة عالية (SmoothTransformation) لجعل الحواف ناعمة
+            scaled_pix = pix.scaled(
+                self.W, 
+                self.H, 
+                Qt.IgnoreAspectRatio, 
+                Qt.SmoothTransformation
+            )
+            self.img_lbl.setPixmap(scaled_pix)
         else:
-            QMessageBox.warning(parent_widget, "Failed", "Failed to download update file.")
-            if parent_widget: parent_widget.setDisabled(False)
+            self.img_lbl.setText("NO IMAGE")
+            self.img_lbl.setAlignment(Qt.AlignCenter)
+            self.img_lbl.setStyleSheet("background-color: #151515; border-radius: 15px; color: #333;")
 
-    except Exception as e:
-        if parent_widget: parent_widget.setDisabled(False)
-        QMessageBox.critical(parent_widget, "Update Failed", f"An error occurred:\n{str(e)}")
+        layout.addWidget(self.img_lbl)
+        self.update_style()
 
+    def update_selection_color(self, color):
+        self.selection_color = color
+        self.update_style()
 
-def apply_update(source, target):
-    for item in os.listdir(source):
-        if item in IGNORED_DIRS:
-            continue
+    def update_style(self):
+        border_color = self.selection_color if self.is_selected else "transparent"
+        
+        # إضافة الحواف الدائرية للإطار الخارجي أيضاً ليتماشى مع الصورة
+        self.setStyleSheet(f"""
+            #GameCard {{ 
+                border: 4px solid {border_color}; 
+                border-radius: 19px; 
+                background: transparent; 
+            }}
+        """)
 
-        s = os.path.join(source, item)
-        d = os.path.join(target, item)
+    def set_selected(self, state):
+        self.is_selected = state
+        self.update_style()
 
-        if os.path.isdir(s):
-            if os.path.exists(d):
-                shutil.rmtree(d)
-            shutil.copytree(s, d)
-        else:
-            shutil.copy2(s, d)
-
-
-def restart_app():
-    python = sys.executable
-    os.execl(python, python, *sys.argv)
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.callback(self)
