@@ -10,6 +10,7 @@ class GameCard(QFrame):
         self.selection_color = "#27ae60"
         self.setObjectName("GameCard")
 
+        # تحديد الأبعاد
         self.banner_type = self.game.get("banner_type", "long")
         if self.banner_type == "wide":
             self.H = 160
@@ -26,19 +27,26 @@ class GameCard(QFrame):
         self.setFixedSize(self.W, self.H)
 
         self.img_lbl = QLabel()
-        self.img_lbl.setScaledContents(True)
+        # نلغي setScaledContents لأننا سنقوم بالتحجيم يدوياً بجودة عالية
+        self.img_lbl.setScaledContents(False)
         
-        # تم حذف border-radius من هنا لتصبح الصورة حادة الزوايا
-        self.img_lbl.setStyleSheet("background-color: #111;")
+        # إضافة حواف دائرية للصورة (Radius)
+        self.img_lbl.setStyleSheet("border-radius: 15px; background-color: #111;")
 
         pix = QPixmap(self.game.get("banner", ""))
         if not pix.isNull():
-            self.img_lbl.setPixmap(pix)
+            # أهم خطوة: تحجيم الصورة بجودة عالية (SmoothTransformation) لجعل الحواف ناعمة
+            scaled_pix = pix.scaled(
+                self.W, 
+                self.H, 
+                Qt.IgnoreAspectRatio, 
+                Qt.SmoothTransformation
+            )
+            self.img_lbl.setPixmap(scaled_pix)
         else:
             self.img_lbl.setText("NO IMAGE")
             self.img_lbl.setAlignment(Qt.AlignCenter)
-            # تم حذف border-radius من هنا أيضاً
-            self.img_lbl.setStyleSheet("background-color: #151515; color: #333;")
+            self.img_lbl.setStyleSheet("background-color: #151515; border-radius: 15px; color: #333;")
 
         layout.addWidget(self.img_lbl)
         self.update_style()
@@ -48,18 +56,13 @@ class GameCard(QFrame):
         self.update_style()
 
     def update_style(self):
-        # تم تعديل الإطار ليكون فقط عند التحديد، وبدون انحناءات
-        if self.is_selected:
-            border_style = f"5px solid {self.selection_color}"
-            # لتعويض مساحة الإطار حتى لا تصغر الصورة عند التحديد (اختياري، يعتمد على تفضيلك)
-            # يمكنك جعل الهوامش 0 إذا كنت تريد الإطار فوق الصورة
-        else:
-            border_style = "none" # إزالة الإطار تماماً عند عدم التحديد
-
-        # تم حذف border-radius: 19px; من الستايل
+        border_color = self.selection_color if self.is_selected else "transparent"
+        
+        # إضافة الحواف الدائرية للإطار الخارجي أيضاً ليتماشى مع الصورة
         self.setStyleSheet(f"""
             #GameCard {{ 
-                border: {border_style}; 
+                border: 4px solid {border_color}; 
+                border-radius: 19px; 
                 background: transparent; 
             }}
         """)
