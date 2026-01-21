@@ -2,7 +2,6 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
-
 class GameCard(QFrame):
     def __init__(self, game, callback):
         super().__init__()
@@ -28,7 +27,9 @@ class GameCard(QFrame):
 
         self.img_lbl = QLabel()
         self.img_lbl.setScaledContents(True)
-        self.img_lbl.setStyleSheet("border-radius: 15px; background-color: #111;")
+        
+        # تم حذف border-radius من هنا لتصبح الصورة حادة الزوايا
+        self.img_lbl.setStyleSheet("background-color: #111;")
 
         pix = QPixmap(self.game.get("banner", ""))
         if not pix.isNull():
@@ -36,7 +37,8 @@ class GameCard(QFrame):
         else:
             self.img_lbl.setText("NO IMAGE")
             self.img_lbl.setAlignment(Qt.AlignCenter)
-            self.img_lbl.setStyleSheet("background-color: #151515; border-radius: 15px; color: #333;")
+            # تم حذف border-radius من هنا أيضاً
+            self.img_lbl.setStyleSheet("background-color: #151515; color: #333;")
 
         layout.addWidget(self.img_lbl)
         self.update_style()
@@ -46,12 +48,18 @@ class GameCard(QFrame):
         self.update_style()
 
     def update_style(self):
-        border_color = self.selection_color if self.is_selected else "transparent"
+        # تم تعديل الإطار ليكون فقط عند التحديد، وبدون انحناءات
+        if self.is_selected:
+            border_style = f"5px solid {self.selection_color}"
+            # لتعويض مساحة الإطار حتى لا تصغر الصورة عند التحديد (اختياري، يعتمد على تفضيلك)
+            # يمكنك جعل الهوامش 0 إذا كنت تريد الإطار فوق الصورة
+        else:
+            border_style = "none" # إزالة الإطار تماماً عند عدم التحديد
 
+        # تم حذف border-radius: 19px; من الستايل
         self.setStyleSheet(f"""
             #GameCard {{ 
-                border: 5px solid {border_color}; 
-                border-radius: 19px; 
+                border: {border_style}; 
                 background: transparent; 
             }}
         """)
