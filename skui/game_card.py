@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QPainter, QPainterPath
 from PySide6.QtCore import Qt
 
 class GameCard(QFrame):
@@ -10,7 +10,7 @@ class GameCard(QFrame):
         self.selection_color = "#27ae60"
         self.setObjectName("GameCard")
 
-        # تحديد الأبعاد
+        # إعداد الأبعاد
         self.banner_type = self.game.get("banner_type", "long")
         if self.banner_type == "wide":
             self.H = 160
@@ -27,22 +27,16 @@ class GameCard(QFrame):
         self.setFixedSize(self.W, self.H)
 
         self.img_lbl = QLabel()
-        # نلغي setScaledContents لأننا سنقوم بالتحجيم يدوياً بجودة عالية
-        self.img_lbl.setScaledContents(False)
-        
-        # إضافة حواف دائرية للصورة (Radius)
-        self.img_lbl.setStyleSheet("border-radius: 15px; background-color: #111;")
+        self.img_lbl.setScaledContents(False) # مهم جداً إلغاء هذا الخيار
+        # نزيل الخلفية من الستايل حتى لا تظهر خلف الزوايا المقصوصة
+        self.img_lbl.setStyleSheet("background: transparent;")
 
         pix = QPixmap(self.game.get("banner", ""))
+        
         if not pix.isNull():
-            # أهم خطوة: تحجيم الصورة بجودة عالية (SmoothTransformation) لجعل الحواف ناعمة
-            scaled_pix = pix.scaled(
-                self.W, 
-                self.H, 
-                Qt.IgnoreAspectRatio, 
-                Qt.SmoothTransformation
-            )
-            self.img_lbl.setPixmap(scaled_pix)
+            # دالة لتدوير حواف الصورة برمجياً
+            rounded_pix = self.get_rounded_pixmap(pix, self.W, self.H, radius=15)
+            self.img_lbl.setPixmap(rounded_pix)
         else:
             self.img_lbl.setText("NO IMAGE")
             self.img_lbl.setAlignment(Qt.AlignCenter)
@@ -51,6 +45,35 @@ class GameCard(QFrame):
         layout.addWidget(self.img_lbl)
         self.update_style()
 
+    def get_rounded_pixmap(self, pixmap, w, h, radius):
+        """
+        تقوم هذه الدالة بإنشاء صورة جديدة شفافة، وتقوم برسم الصورة الأصلية بداخلها
+        مع تطبيق قص (Clip) دائري للحواف.
+        """
+        # 1. تحجيم الصورة لتناسب الأبعاد المطلوبة بجودة عالية
+        scaled_pix = pixmap.scaled(w, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+
+        # 2. إنشاء صورة فارغة (الهدف) بنفس الحجم مع خلفية شفافة
+        target = QPixmap(w, h)
+        target.fill(Qt.transparent)
+
+        # 3. إعداد الرسام (Painter)
+        painter = QPainter(target)
+        painter.setRenderHint(QPainter.Antialiasing, True)       # لتنعيم الحواف
+        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+        # 4. إنشاء مسار القص (شكل المستطيل ذو الزوايا الدائرية)
+        path = QPainterPath()
+        path.addRoundedRect(0, 0, w, h, radius, radius)
+
+        # 5. تطبيق القص والرسم
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, scaled_pix)
+        
+        # إنهاء الرسم
+        painter.end()
+        return target
+
     def update_selection_color(self, color):
         self.selection_color = color
         self.update_style()
@@ -58,7 +81,7 @@ class GameCard(QFrame):
     def update_style(self):
         border_color = self.selection_color if self.is_selected else "transparent"
         
-        # إضافة الحواف الدائرية للإطار الخارجي أيضاً ليتماشى مع الصورة
+        # الإطار الخارجي يظل كما هو ليتناسب مع الصورة
         self.setStyleSheet(f"""
             #GameCard {{ 
                 border: 4px solid {border_color}; 
