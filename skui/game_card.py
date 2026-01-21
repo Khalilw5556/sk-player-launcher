@@ -10,7 +10,6 @@ class GameCard(QFrame):
         self.selection_color = "#27ae60"
         self.setObjectName("GameCard")
 
-        # إعداد الأبعاد
         self.banner_type = self.game.get("banner_type", "long")
         if self.banner_type == "wide":
             self.H = 160
@@ -33,7 +32,6 @@ class GameCard(QFrame):
         pix = QPixmap(self.game.get("banner", ""))
         
         if not pix.isNull():
-            # استخدام الدالة الجديدة والمحسنة
             rounded_pix = self.get_rounded_pixmap(pix, self.W, self.H, radius=15)
             self.img_lbl.setPixmap(rounded_pix)
         else:
@@ -44,40 +42,25 @@ class GameCard(QFrame):
         layout.addWidget(self.img_lbl)
         self.update_style()
 
-    # --- الدالة الجديدة والمحسّنة ---
     def get_rounded_pixmap(self, pixmap, w, h, radius):
-        """
-        تستخدم هذه الدالة وضع الدمج (Composition Mode) لقص الصورة بشكل موثوق.
-        """
-        # 1. إنشاء صورة الهدف النهائية بخلفية شفافة
         target = QPixmap(w, h)
         target.fill(Qt.transparent)
 
-        # 2. تحجيم الصورة الأصلية بجودة عالية
         scaled_pix = pixmap.scaled(w, h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
-        # 3. إعداد الرسام للرسم على صورة الهدف
         painter = QPainter(target)
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
 
-        # 4. إنشاء مسار الرسم (المستطيل الدائري)
         path = QPainterPath()
-        # نستخدم QRectF للحصول على دقة أعلى في الرسم
         path.addRoundedRect(QRectF(0, 0, w, h), radius, radius)
 
-        # 5. نملأ المسار بأي لون (هذا سيحدد المنطقة التي سيتم الرسم بداخلها)
-        # هذا الجزء لن يكون مرئياً في النهاية
         painter.fillPath(path, QBrush(Qt.white))
 
-        # 6. الخطوة السحرية: تغيير وضع الدمج
-        # SourceIn: ارسم المصدر (الصورة) فقط داخل الوجهة (الشكل الدائري)
         painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
 
-        # 7. رسم الصورة الأصلية. سيتم رسمها فقط داخل حدود الشكل الدائري
         painter.drawPixmap(0, 0, scaled_pix)
 
-        # 8. إنهاء الرسم
         painter.end()
         return target
 
