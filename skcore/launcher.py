@@ -6,6 +6,7 @@ def launch_game(game, process_obj):
     runner_exe = get_runner_executable(game)
     game_path = os.path.abspath(game.get("path", ""))
     game_dir = os.path.dirname(game_path)
+    r_type = game.get("runner_type", "System")
 
     if not os.path.exists(game_path):
         return False, "Executable path not found!"
@@ -15,15 +16,28 @@ def launch_game(game, process_obj):
     safe_name = game['name'].replace(" ", "_")
     prefix = os.path.abspath(os.path.join("data", "prefixes", safe_name))
     os.makedirs(prefix, exist_ok=True)
-
     env.insert("WINEPREFIX", prefix)
 
-    if game.get("runner_type") == "Proton" and "files" in runner_exe:
-        proton_base = os.path.dirname(os.path.dirname(os.path.dirname(runner_exe)))
+    if r_type in ["Custom", "Wine"] and runner_exe != "wine":
+        runner_root = os.path.dirname(os.path.dirname(runner_exe))
+        lib64 = os.path.join(runner_root, "lib64")
+        lib32 = os.path.join(runner_root, "lib")
+        
+        current_ld = env.value("LD_LIBRARY_PATH", "")
+        env.insert("LD_LIBRARY_PATH", f"{lib64}:{lib32}:{current_ld}".strip(":"))
+
+    elif r_type == "Proton":
+        proton_base = ""
+        if "files" in runner_exe:
+            proton_base = os.path.dirname(os.path.dirname(os.path.dirname(runner_exe)))
+        else:
+            proton_base = os.path.dirname(os.path.dirname(runner_exe))
 
         lib64 = os.path.join(proton_base, "files", "lib64")
         lib32 = os.path.join(proton_base, "files", "lib")
-        env.insert("LD_LIBRARY_PATH", f"{lib64}:{lib32}:{os.environ.get('LD_LIBRARY_PATH', '')}")
+        
+        current_ld = env.value("LD_LIBRARY_PATH", "")
+        env.insert("LD_LIBRARY_PATH", f"{lib64}:{lib32}:{current_ld}".strip(":"))
 
         env.insert("STEAM_COMPAT_CLIENT_INSTALL_PATH", os.path.abspath("data"))
         env.insert("STEAM_COMPAT_DATA_PATH", prefix)
@@ -35,4 +49,5 @@ def launch_game(game, process_obj):
     process_obj.setProcessChannelMode(QProcess.MergedChannels)
 
     process_obj.start(runner_exe, [game_path])
+    
     return True, "Success"
