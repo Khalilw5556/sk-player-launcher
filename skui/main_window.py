@@ -5,20 +5,32 @@ from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QScrollArea,
     QLabel, QPushButton, QTextEdit, QFileDialog,
     QDialog, QFrame, QGraphicsDropShadowEffect,
-    QSystemTrayIcon, QMenu, QStyle, QApplication
+    QSystemTrayIcon, QMenu, QStyle, QApplication, QSizePolicy
 )
-from PySide6.QtCore import Qt, QProcess
+from PySide6.QtCore import Qt, QProcess, Signal
 from PySide6.QtGui import QColor, QPalette, QIcon, QAction
 
 from skcore.database import load_games, save_games
 from skcore.launcher import launch_game
 from skcore.config import load_settings
+
 from skui.game_card import GameCard
 from skui.edit_dialog import EditGameDialog
 from skui.theme_dialog import ThemeDialog
 from skui.title_bar import CustomTitleBar
 from skui.settings_dialog import SettingsDialog
+from skui.runnerversion_dialog import RunnerVersionDialog
 
+class ClickableLabel(QLabel):
+    clicked = Signal()
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -40,7 +52,6 @@ class MainWindow(QWidget):
         self.accent_color = "#27ae60"
         self.select_color = "#27ae60"
         self.lib_color = "#eeeeee"
-
         self.title_bar_color = "#050505"
 
         self.games = load_games()
@@ -79,7 +90,6 @@ class MainWindow(QWidget):
         tray_menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(tray_menu)
-
         self.tray_icon.activated.connect(self.on_tray_icon_activated)
         self.tray_icon.show()
 
@@ -173,8 +183,6 @@ class MainWindow(QWidget):
         self.grid_container = QWidget()
         self.grid_container.setObjectName("GridContainer")
         self.grid_container.setStyleSheet("background: transparent;")
-        self.grid_container.mousePressEvent = self.background_click_event
-        self.grid_container.mousePressEvent = self.background_click_event
 
         self.grid_layout = QVBoxLayout(self.grid_container)
         self.grid_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -186,7 +194,6 @@ class MainWindow(QWidget):
         self.scroll.setWidget(self.grid_container)
 
         self.scroll.viewport().setStyleSheet("background: transparent;")
-
         self.scroll.setStyleSheet("""
                     QScrollArea { background: transparent; border: none; }
                     QScrollBar:horizontal {
@@ -223,13 +230,26 @@ class MainWindow(QWidget):
 
         text_layout = QVBoxLayout()
         text_layout.setAlignment(Qt.AlignTop)
-
         text_layout.setSpacing(0)
 
         self.lbl_title = QLabel("Select a Game")
         self.lbl_title.setObjectName("lbl_title")
-        self.lbl_meta = QLabel("")
-        self.lbl_meta.setObjectName("lbl_meta")
+
+        meta_layout = QHBoxLayout()
+        meta_layout.setSpacing(5)
+        meta_layout.setAlignment(Qt.AlignLeft)
+
+        self.lbl_version_text = QLabel("")
+        self.lbl_version_text.setObjectName("lbl_version_text")
+
+        self.lbl_runner_btn = ClickableLabel("")
+        self.lbl_runner_btn.setObjectName("lbl_runner_btn")
+        self.lbl_runner_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.lbl_runner_btn.clicked.connect(self.open_runner_selector)
+
+        meta_layout.addWidget(self.lbl_version_text)
+        meta_layout.addWidget(self.lbl_runner_btn)
+
         self.lbl_desc = QLabel("")
         self.lbl_desc.setObjectName("lbl_desc")
         self.lbl_desc.setWordWrap(True)
@@ -241,7 +261,7 @@ class MainWindow(QWidget):
         desc_scroll.setStyleSheet("QScrollArea{background:transparent;}QWidget{background:transparent;}")
 
         text_layout.addWidget(self.lbl_title)
-        text_layout.addWidget(self.lbl_meta)
+        text_layout.addLayout(meta_layout)
         text_layout.addWidget(desc_scroll)
 
         info_layout.addLayout(text_layout, 1)
@@ -330,10 +350,26 @@ class MainWindow(QWidget):
                 font-weight: bold;
                 color: white;
             }}
-            #lbl_meta {{
+
+            #lbl_version_text {{
                 color: {self.accent_color};
                 font-weight: bold;
+                padding-top: 5px;
             }}
+
+            #lbl_runner_btn {{
+                color: {self.accent_color};
+                font-weight: bold;
+                padding: 4px 8px;
+                border-radius: 5px;
+                margin-top: 2px;
+            }}
+            
+            #lbl_runner_btn:hover {{
+                background-color: rgba(255, 255, 255, 0.1);
+                color: #fff;
+            }}
+
             #lbl_desc {{
                 color: #888;
             }}
@@ -431,7 +467,8 @@ class MainWindow(QWidget):
         for c in getattr(self, "cards", []):
             c.set_selected(False)
         self.lbl_title.setText("Select a Game")
-        self.lbl_meta.setText("")
+        self.lbl_version_text.setText("")
+        self.lbl_runner_btn.setText("")
         self.lbl_desc.setText("")
 
     def on_select(self, card):
@@ -440,12 +477,18 @@ class MainWindow(QWidget):
         card.set_selected(True)
         self.selected_game = card.game
         self.lbl_title.setText(card.game["name"])
-        self.lbl_meta.setText(f"v{card.game.get('version', '1.0')} • {card.game.get('runner_type', 'System').upper()}")
+        
+        version = card.game.get('version', '1.0')
+        runner = card.game.get('runner_type', 'System').upper()
+
+        self.lbl_version_text.setText(f"v{version} •")
+        self.lbl_runner_btn.setText(runner)
+
         self.lbl_desc.setText(card.game.get("description", ""))
 
     def read_output(self):
         out = self.process.readAllStandardOutput().data().decode().strip()
-        if out: self.log(f"<span style='color:#555'>[Wine] {out}</span>")
+        if out: self.log(f"<span style='color:#555'>[Output] {out}</span>")
 
     def clear_layout(self, layout):
         if layout is None:
@@ -507,6 +550,30 @@ class MainWindow(QWidget):
 
         self.grid_layout.addStretch()
 
+    def open_runner_selector(self):
+        if not self.selected_game:
+            return
+
+        try:
+            dlg = RunnerVersionDialog(self)
+
+            if dlg.exec() == QDialog.Accepted:
+                self.games = load_games()
+
+                for g in self.games:
+                    if g['path'] == self.selected_game['path']:
+                        self.selected_game = g
+                        break
+
+                version = self.selected_game.get('version', '1.0')
+                runner = self.selected_game.get('runner_type', 'System').upper()
+                
+                self.lbl_version_text.setText(f"v{version} •")
+                self.lbl_runner_btn.setText(runner)
+
+        except Exception as e:
+            self.log(f"Error opening runner dialog: {e}")
+
     def add(self):
         home_dir = os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(self, "Add Game", home_dir,
@@ -555,8 +622,6 @@ class MainWindow(QWidget):
                 save_games(self.games)
                 self.clear_selection()
                 self.refresh_grid()
-            else:
-                print("Error: Could not find the game in the list to delete.")
 
     def set_banner(self):
         if not self.selected_game: return
@@ -625,8 +690,6 @@ class MainWindow(QWidget):
 
             should_minimize = fresh_settings.get("minimize_on_launch", False)
 
-            print(f"DEBUG: Launching Game... Minimize Setting is: {should_minimize}")
-
             if should_minimize is True:
                 self.hide()
                 self.tray_icon.showMessage("SK Player", "Running in background", QSystemTrayIcon.Information, 2000)
@@ -635,7 +698,6 @@ class MainWindow(QWidget):
 
     def on_game_closed(self):
         self.play_btn.setText("PLAY")
-        self.play_btn.setStyleSheet("")
         self.apply_theme()
 
         if self.isHidden():
@@ -646,8 +708,6 @@ class MainWindow(QWidget):
         fresh_settings = load_settings()
 
         should_minimize = fresh_settings.get("minimize_to_tray_on_close", False)
-
-        print(f"DEBUG: Close Button Clicked. Minimize Setting: {should_minimize}")
 
         if should_minimize is True:
             event.ignore()
