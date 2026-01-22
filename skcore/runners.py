@@ -1,9 +1,15 @@
-import os, requests, stat
+import os
+import requests
+import stat
 
 RUNNERS_DIR = os.path.abspath(os.path.join("data", "runners"))
+CUSTOM_RUNNERS_DIR = os.path.join(RUNNERS_DIR, "custom")
+
+os.makedirs(CUSTOM_RUNNERS_DIR, exist_ok=True)
 
 def get_runner_versions(runner_type):
-    if runner_type == "System": return []
+    if runner_type in ["System", "Custom"]: return []
+    
     repo = "GloriousEggroll/proton-ge-custom" if runner_type == "Proton" else "Kron4ek/Wine-Builds"
     try:
         r = requests.get(f"https://api.github.com/repos/{repo}/releases", timeout=10)
@@ -13,13 +19,13 @@ def get_runner_versions(runner_type):
                                  a['name'].endswith(('.tar.gz', '.tar.xz'))),
                      "filename": next(a['name'] for a in rel['assets'] if a['name'].endswith(('.tar.gz', '.tar.xz')))}
                     for rel in r.json() if rel['assets']]
-    except:
-        pass
+    except: pass
     return []
 
 def is_runner_installed(runner_type, version_name):
     if runner_type == "System": return True
-    return os.path.exists(os.path.join(RUNNERS_DIR, runner_type.lower(), version_name))
+    path = os.path.join(CUSTOM_RUNNERS_DIR if runner_type == "Custom" else os.path.join(RUNNERS_DIR, runner_type.lower()), version_name)
+    return os.path.exists(path)
 
 def set_executable_permissions(path):
     for root, dirs, files in os.walk(path):
@@ -28,23 +34,29 @@ def set_executable_permissions(path):
             try:
                 st = os.stat(p)
                 os.chmod(p, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-            except:
-                pass
+            except: pass
 
 def get_runner_executable(game):
     r_type = game.get("runner_type", "System")
     r_ver = game.get("runner_version", "")
-    if r_type == "System" or not r_ver: return "wine"
+    
+    if r_type == "System" or not r_ver:
+        return "wine"
 
-    base_path = os.path.abspath(os.path.join(RUNNERS_DIR, r_type.lower(), r_ver))
+    if r_type == "Custom":
+        base_path = os.path.abspath(os.path.join(CUSTOM_RUNNERS_DIR, r_ver))
+    else:
+        base_path = os.path.abspath(os.path.join(RUNNERS_DIR, r_type.lower(), r_ver))
 
     check_paths = [
         os.path.join(base_path, "files", "bin", "wine"),
         os.path.join(base_path, "bin", "wine"),
-        os.path.join(base_path, "bin", "wine64")
+        os.path.join(base_path, "bin", "wine64"),
+        os.path.join(base_path, "wine")
     ]
 
     for p in check_paths:
-        if os.path.exists(p): return p
+        if os.path.exists(p):
+            return p
 
     return "wine"
