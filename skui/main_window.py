@@ -635,6 +635,7 @@ class MainWindow(QWidget):
 
     def on_game_closed(self):
         self.play_btn.setText("PLAY")
+        self.play_btn.setStyleSheet("")
         self.apply_theme()
 
         if self.isHidden():
